@@ -1,4 +1,5 @@
 {
+  "version": 2,
   "builds": [
     {
       "src": "main.py",
@@ -16,7 +17,14 @@
   },
   "functions": {
     "main.py": {
-      "maxDuration": 30
+      "maxDuration": 60,
+      "memory": 1024
     }
-  }
+  },
+  "build": {
+    "env": {
+      "PYTHON_VERSION": "3.11"
+    }
+  },
+  "regions": ["iad1"]
 }

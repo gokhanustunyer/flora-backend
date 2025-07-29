@@ -221,8 +221,12 @@ async def root_health():
     }
 
 
+# Export the app for Vercel
+# This is required for Vercel deployment
+handler = app
+
 if __name__ == "__main__":
-    # Run the application
+    # Run the application locally
     uvicorn.run(
         "main:app",
         host=settings.app_host,
