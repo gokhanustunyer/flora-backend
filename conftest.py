@@ -4,8 +4,6 @@ import pytest
 import pytest_asyncio
 import asyncio
 from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from sqlalchemy.pool import StaticPool
 import tempfile
 import os
 from PIL import Image
@@ -19,18 +17,6 @@ from config.settings import settings
 # Test database URL (in-memory SQLite for testing)  
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
-# Mock UUID support for SQLite
-from sqlalchemy.dialects.sqlite.base import SQLiteTypeCompiler
-from sqlalchemy.dialects.postgresql import UUID
-
-def visit_UUID(self, type_, **kw):
-    return "TEXT"
-
-# Monkey patch UUID support for SQLite - apply globally
-SQLiteTypeCompiler.visit_UUID = visit_UUID
-
-# Import this patch in database connection too
-import database.connection
 
 
 @pytest.fixture(scope="session")
@@ -39,35 +25,6 @@ def event_loop():
     loop = asyncio.get_event_loop_policy().new_event_loop()
     yield loop
     loop.close()
-
-
-@pytest_asyncio.fixture
-async def test_engine():
-    """Create test database engine."""
-    engine = create_async_engine(
-        TEST_DATABASE_URL,
-        poolclass=StaticPool,
-        connect_args={"check_same_thread": False},
-    )
-    
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    
-    yield engine
-    
-    await engine.dispose()
-
-
-@pytest_asyncio.fixture
-async def test_session(test_engine):
-    """Create test database session."""
-    async_session = async_sessionmaker(
-        test_engine, class_=AsyncSession, expire_on_commit=False
-    )
-    
-    async with async_session() as session:
-        yield session
-
 
 @pytest_asyncio.fixture
 async def client(test_session):
