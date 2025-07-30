@@ -6,45 +6,36 @@ from datetime import datetime
 from typing import Optional
 from fastapi import APIRouter, UploadFile, File, HTTPException, Query
 from fastapi.responses import JSONResponse
-
-from api.schemas import ImageGenerationResponse, ErrorResponse, HealthResponse
-from services.image_processing import (
-    validate_and_process_image,
-    convert_image_to_base64,
-    overlay_logo
-)
-from services.stability_ai_generation import StabilityAIGenerator
+from services.stability_ai_generation import StabilityAIGenerator  
 from services.supabase_client import supabase_service
-from services.local_storage import LocalStorageService
+from services.supabase_storage import storage_service
+from services.image_processing import convert_image_to_base64
+from utils.logging_config import get_logger
+from config.settings import settings
 from utils.exceptions import (
     FileSizeExceededError,
     InvalidFileTypeError,
     ImageProcessingError,
     AIGenerationFailedError
 )
-from utils.logging_config import get_logger
 
 logger = get_logger(__name__)
-
-# Initialize router
 router = APIRouter()
 
-# Initialize services
+# Initialize Stability.ai generator
+stability_generator = None
 try:
-    from config.settings import settings
     stability_generator = StabilityAIGenerator(api_key=settings.stability_ai_api_key)
     logger.info("✅ Stability.ai generator initialized successfully")
 except Exception as e:
     logger.error(f"❌ Failed to initialize Stability.ai generator: {e}")
     stability_generator = None
 
-# Initialize local storage
-try:
-    local_storage = LocalStorageService()
-    logger.info("✅ Local storage initialized successfully")
-except Exception as e:
-    logger.error(f"❌ Failed to initialize local storage: {e}")
-    local_storage = None
+# Check storage service
+if storage_service:
+    logger.info("✅ Supabase Storage service available")
+else:
+    logger.warning("⚠️ Supabase Storage service not available")
 
 @router.get("/health")
 async def health_check():
@@ -139,42 +130,72 @@ async def generate_image(
             final_image = generated_image
             logo_applied = False
             
-            # Save images to local storage
+            # Save images to Supabase Storage
             original_url = None
             generated_url = None
-            
-            if local_storage:
-                logger.info("💾 Starting local storage save operations...")
+
+            if storage_service:
+                logger.info("💾 Starting Supabase Storage save operations...")
                 try:
-                    # Save original image (bytes)
+                    # Save original image to bucket
                     logger.info(f"💾 Saving original image: {image.filename}, size: {len(processed_image)} bytes")
-                    original_url = local_storage.save_image(
-                        processed_image, 
-                        image.filename, 
-                        folder="originals"
+                    _, original_url = await storage_service.upload_image(
+                        image_bytes=processed_image,
+                        filename=image.filename,
+                        folder="originals",
+                        content_type=image.content_type or "image/png"
                     )
-                    logger.info(f"✅ Original image saved: {original_url}")
+                    logger.info(f"✅ Original image saved to bucket: {original_url}")
                     
-                    # Save generated image (convert PIL Image to bytes first)
-                    import io
-                    img_bytes = io.BytesIO()
-                    final_image.save(img_bytes, format='PNG')
-                    generated_bytes = img_bytes.getvalue()
+                    # Save generated image to bucket
+                    logger.info(f"🔍 Generated image type: {type(final_image)}")
                     
-                    logger.info(f"💾 Saving generated image: size: {len(generated_bytes)} bytes")
-                    generated_url = local_storage.save_image(
-                        generated_bytes, 
-                        f"generated_{image.filename.split('.')[0]}.png", 
-                        folder="generations"
-                    )
-                    logger.info(f"✅ Generated image saved: {generated_url}")
+                    # Convert bytes to PIL Image if needed, then save to bucket
+                    try:
+                        if isinstance(final_image, bytes):
+                            # final_image is bytes from Stability.ai, convert to PIL for bucket storage
+                            from PIL import Image
+                            import io
+                            pil_image = Image.open(io.BytesIO(final_image))
+                            logger.info(f"🔄 Converted bytes to PIL Image: {pil_image.size}, format: {pil_image.format}")
+                            
+                            # Convert PIL back to bytes with PNG format for storage
+                            img_bytes = io.BytesIO()
+                            pil_image.save(img_bytes, format='PNG')
+                            generated_bytes = img_bytes.getvalue()
+                        elif hasattr(final_image, 'save'):
+                            # final_image is already PIL Image
+                            import io
+                            img_bytes = io.BytesIO()
+                            final_image.save(img_bytes, format='PNG')
+                            generated_bytes = img_bytes.getvalue()
+                        else:
+                            logger.error(f"❌ Unknown generated image type: {type(final_image)}")
+                            generated_url = None
+                            raise Exception(f"Unknown image type: {type(final_image)}")
+                        
+                        logger.info(f"💾 Generated image ready for upload: {len(generated_bytes)} bytes")
+                        
+                        _, generated_url = await storage_service.upload_image(
+                            image_bytes=generated_bytes,
+                            filename=f"generated_{image.filename.split('.')[0]}.png",
+                            folder="generations",
+                            content_type="image/png"
+                        )
+                        logger.info(f"✅ Generated image saved to bucket: {generated_url}")
+                        
+                    except Exception as gen_error:
+                        logger.error(f"❌ Failed to save generated image: {gen_error}")
+                        import traceback
+                        logger.error(f"🔍 Generated image error: {traceback.format_exc()}")
+                        generated_url = None
                     
                 except Exception as e:
-                    logger.error(f"❌ Failed to save images to storage: {e}")
+                    logger.error(f"❌ Failed to save images to bucket: {e}")
                     import traceback
                     logger.error(f"🔍 Storage error traceback: {traceback.format_exc()}")
             else:
-                logger.warning("⚠️ Local storage not available!")
+                logger.warning("⚠️ Supabase Storage not available!")
             
             # Convert to base64
             final_base64 = convert_image_to_base64(final_image)
@@ -207,7 +228,7 @@ async def generate_image(
                             
                         logger.info(f"📝 Update data: {update_data}")
                         
-                        result = await supabase_service.client.table('image_generations').update(update_data).eq('id', generation_id).execute()
+                        result = supabase_service.client.table('image_generations').update(update_data).eq('id', generation_id).execute()
                         logger.info(f"✅ URLs updated in Supabase record {generation_id}: {result.data}")
                     except Exception as url_error:
                         logger.error(f"❌ Failed to update URLs in Supabase: {url_error}")
@@ -227,7 +248,7 @@ async def generate_image(
                     "base64Image": final_base64
                 }
             }
-            
+        
         except Exception as e:
             # Update database record with error
             if record:

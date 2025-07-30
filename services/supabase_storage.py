@@ -23,7 +23,7 @@ class SupabaseStorageService:
         
         self.supabase_url = settings.supabase_url
         self.supabase_key = settings.supabase_service_role_key or settings.supabase_anon_key
-        self.bucket_name = settings.supabase_storage_bucket
+        self.bucket_name = "images"  # User created "images" bucket
         
         # Initialize Supabase client
         self.client: Client = create_client(self.supabase_url, self.supabase_key)
@@ -67,14 +67,11 @@ class SupabaseStorageService:
                 }
             )
             
-            if response.get('error'):
-                raise ImageProcessingError(
-                    f"Failed to upload image to Supabase Storage: {response['error']}"
-                )
+            # Modern supabase handles response differently
+            logger.info(f"Upload response type: {type(response)}")
             
             # Get public URL
-            public_url_response = self.client.storage.from_(self.bucket_name).get_public_url(file_path)
-            public_url = public_url_response
+            public_url = self.client.storage.from_(self.bucket_name).get_public_url(file_path)
             
             logger.info(f"Image uploaded successfully to: {public_url}")
             
@@ -273,12 +270,12 @@ class SupabaseStorageService:
             logger.warning(f"Image validation failed: {e}")
             return False
 
-# Initialize storage service if Supabase is enabled (disabled for simplified version)
+# Initialize storage service
 storage_service = None
-# Disabled to keep the application simple
-# if settings.use_supabase_storage and settings.supabase_enabled:
-#     try:
-#         storage_service = SupabaseStorageService()
-#     except Exception as e:
-#         logger.error(f"Failed to initialize Supabase Storage service: {e}")
-#         storage_service = None 
+if settings.supabase_enabled:
+    try:
+        storage_service = SupabaseStorageService()
+        logger.info("✅ Supabase Storage service initialized successfully")
+    except Exception as e:
+        logger.error(f"❌ Failed to initialize Supabase Storage service: {e}")
+        storage_service = None 

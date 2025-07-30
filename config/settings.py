@@ -22,18 +22,10 @@ class Settings(BaseSettings):
     # =================================================================
     # SUPABASE DATABASE CONFIGURATION (Optional - for request tracking)
     # =================================================================
-    supabase_url: Optional[str] = Field(
-        default=None,
-        description="Supabase project URL (e.g., https://your-project.supabase.co)"
-    )
-    supabase_anon_key: Optional[str] = Field(
-        default=None,
-        description="Supabase anonymous/public API key"
-    )
-    supabase_service_role_key: Optional[str] = Field(
-        default=None,
-        description="Supabase service role key (for admin operations)"
-    )
+    supabase_url: str = Field(..., env="SUPABASE_URL")
+    supabase_anon_key: str = Field(..., env="SUPABASE_ANON_KEY")
+    supabase_service_role_key: Optional[str] = Field(None, env="SUPABASE_SERVICE_ROLE_KEY")
+    supabase_storage_bucket: str = Field("images", env="SUPABASE_STORAGE_BUCKET")
     database_url: Optional[str] = Field(
         default=None,
         description="Direct PostgreSQL connection URL (if using Supabase's direct DB access)"
@@ -45,10 +37,6 @@ class Settings(BaseSettings):
     # =================================================================
     # SUPABASE STORAGE CONFIGURATION (Optional - alternative to Azure Storage)
     # =================================================================
-    supabase_storage_bucket: str = Field(
-        default="gnb-dog-images",
-        description="Supabase Storage bucket name"
-    )
     use_supabase_storage: bool = Field(
         default=False,
         description="Use Supabase Storage instead of Azure Storage"
@@ -157,8 +145,8 @@ class Settings(BaseSettings):
     # =================================================================
     @property
     def supabase_enabled(self) -> bool:
-        """Check if Supabase features are enabled."""
-        return self.supabase_url is not None and self.supabase_anon_key is not None
+        """Check if Supabase is properly configured."""
+        return bool(self.supabase_url and self.supabase_anon_key)
 
     @property
     def database_enabled(self) -> bool:
