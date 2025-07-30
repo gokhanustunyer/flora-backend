@@ -1,0 +1,3 @@
+[33m4431f01[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m, [m[1;31morigin/master[m[33m)[m Remove SQLite, simplify to Supabase-only configuration
+[33m8f94629[m Trigger Vercel redeploy with SQLAlchemy dependencies
+[33mf457f7b[m Add SQLAlchemy dependencies: sqlalchemy, aiosqlite, alembic

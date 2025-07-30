@@ -2,13 +2,10 @@
 
 import time
 from datetime import datetime, timezone
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
+from fastapi import APIRouter, UploadFile, File, HTTPException
 from fastapi.responses import JSONResponse
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.schemas import ImageGenerationResponse, ErrorResponse, HealthResponse
-from database.connection import get_db, check_database_health
-from models.image_generation import ImageGeneration
 from services.image_processing import (
     validate_and_process_image,
     convert_image_to_base64,
@@ -72,8 +69,7 @@ async def generate_dog_image(
         ...,
         description="Dog image file (JPEG, PNG, or WebP)",
         media_type="multipart/form-data"
-    ),
-    db: AsyncSession = Depends(get_db)
+    )
 ):
     """
     Generate an AI image of a dog wearing GNB apparel.

@@ -24,18 +24,8 @@ def event_loop():
 @pytest_asyncio.fixture
 async def client():
     """Create test client without database dependency."""
-    # Override database dependency to return None for testing
-    from database.connection import get_db
-    
-    async def override_get_db():
-        yield None
-    
-    app.dependency_overrides[get_db] = override_get_db
-    
     async with AsyncClient(app=app, base_url="http://test") as ac:
         yield ac
-    
-    app.dependency_overrides.clear()
 
 
 @pytest.fixture
