@@ -5,6 +5,7 @@ Pillow==10.1.0
 pydantic-settings==2.1.0
 requests==2.31.0
 python-dotenv==1.0.0
+structlog==23.2.0
 
 # Minimal Supabase for Vercel
 supabase==2.3.0 
