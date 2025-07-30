@@ -265,6 +265,48 @@ Style: Photorealistic, high-resolution, professional pet photography with excell
                 logger.error("Stability.ai generation failed", error=error_message)
                 raise AIGenerationFailedError(f"Image generation failed: {error_message}")
     
+    async def describe_dog_image(self, image_bytes: bytes) -> str:
+        """
+        Generate a description of the dog in the image.
+        
+        Args:
+            image_bytes: Image data as bytes
+            
+        Returns:
+            Description of the dog for prompt generation
+        """
+        # For now, return a simple description
+        # In production, you might use vision AI to analyze the image
+        return "A friendly, well-groomed dog with a beautiful coat, looking happy and energetic"
+    
+    async def generate_dog_image(self, prompt: str, image_bytes: bytes = None) -> bytes:
+        """
+        Generate a new dog image using Stability.ai.
+        
+        Args:
+            prompt: Description prompt for the dog
+            image_bytes: Original image bytes (optional for inpainting)
+            
+        Returns:
+            Generated image as bytes
+        """
+        try:
+            logger.info(f"🎨 Generating image with prompt: {prompt}")
+            
+            # Use the existing generate_image method with correct parameters
+            result = await self.generate_image(
+                image_bytes=image_bytes,
+                dog_description=f"{prompt}. The dog should be wearing cozy, premium GNB apparel in earth tones.",
+                timeout=30
+            )
+            
+            logger.info("✅ Image generated successfully")
+            return result
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to generate dog image: {e}")
+            raise AIGenerationFailedError(f"Failed to generate dog image: {str(e)}")
+
     def health_check(self) -> bool:
         """
         Perform a health check on the Stability.ai service.

@@ -273,11 +273,12 @@ class SupabaseStorageService:
             logger.warning(f"Image validation failed: {e}")
             return False
 
-# Initialize storage service if Supabase is enabled
+# Initialize storage service if Supabase is enabled (disabled for simplified version)
 storage_service = None
-if settings.use_supabase_storage and settings.supabase_enabled:
-    try:
-        storage_service = SupabaseStorageService()
-    except Exception as e:
-        logger.error(f"Failed to initialize Supabase Storage service: {e}")
-        storage_service = None 
+# Disabled to keep the application simple
+# if settings.use_supabase_storage and settings.supabase_enabled:
+#     try:
+#         storage_service = SupabaseStorageService()
+#     except Exception as e:
+#         logger.error(f"Failed to initialize Supabase Storage service: {e}")
+#         storage_service = None 

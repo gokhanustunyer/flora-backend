@@ -33,16 +33,8 @@ class SupabaseClientService:
                 logger.info("Make sure SUPABASE_URL and SUPABASE_KEY are set in your .env file")
                 return
             
-            # Create client with minimal options to avoid version conflicts
-            self.client = create_client(
-                supabase_url=supabase_url, 
-                supabase_key=supabase_key,
-                options={
-                    'db': {'schema': 'public'},
-                    'auth': {'auto_refresh_token': True, 'persist_session': True},
-                    'realtime': {'enabled': False}  # Disable realtime to avoid conflicts
-                }
-            )
+            # Create client with minimal configuration
+            self.client = create_client(supabase_url, supabase_key)
             logger.info("✅ Supabase client initialized successfully")
             
             # Test connection

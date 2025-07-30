@@ -8,4 +8,4 @@ python-dotenv==1.0.0
 structlog==23.2.0
 
 # Supabase SDK for database operations
-supabase==2.3.0 
+supabase>=2.8.0 

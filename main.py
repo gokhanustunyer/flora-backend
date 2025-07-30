@@ -26,19 +26,18 @@ logger = get_logger(__name__)
 app = FastAPI(
     title="GNB Dog Image Generation API",
     description="""
-    A production-ready FastAPI backend that integrates with Azure AI services to transform 
+    A simplified FastAPI backend that uses Stability.ai to transform 
     dog photos into AI-generated images of dogs wearing GNB-branded apparel.
     
     ## 🚀 Features
     
-    * **Azure AI Integration**: Uses Azure OpenAI DALL-E for high-quality image generation
+    * **Stability.ai Integration**: Uses Stability.ai for high-quality image generation
     * **Image Processing**: Validates, resizes, and processes uploaded dog photos
     * **Logo Overlay**: Automatically adds GNB branding to generated images
-    * **Database Tracking**: Tracks generation requests, status, and performance metrics
+    * **Supabase Storage**: Tracks generation requests, status, and performance metrics
     * **Generation History**: View past generations and their status
     * **Analytics**: Get aggregated statistics about image generation performance
-    * **Production Ready**: Comprehensive error handling, logging, and monitoring
-    * **Modular Architecture**: Clean, maintainable code structure
+    * **Simple Architecture**: Clean, maintainable code structure using only Supabase
     * **CORS Support**: Configured for frontend integration
     * **Structured Logging**: JSON-formatted logs with request tracking
     
@@ -48,16 +47,16 @@ app = FastAPI(
     * `POST /api/v1/generate` - Generate AI dog images with GNB apparel
     * `GET /api/v1/health` - Service health check
     
-    ### Database Features (when DATABASE_URL is configured)
+    ### Database Features (Supabase)
     * `GET /api/v1/generations` - List recent image generations with pagination
     * `GET /api/v1/generations/{id}` - Get specific generation details
     * `GET /api/v1/statistics` - Get aggregated statistics and performance metrics
     
     ## 🔧 Configuration
     
-    * **DATABASE_URL**: Enable database features for request tracking and analytics
-    * **Azure OpenAI**: Configure Azure credentials for DALL-E image generation
-    * **File Upload**: Customize max file size and allowed image types
+    * **SUPABASE_URL**: Supabase project URL
+    * **SUPABASE_KEY**: Supabase API key for database operations
+    * **STABILITY_AI_API_KEY**: Stability.ai API key for image generation
     """,
     version="1.0.0",
     docs_url="/docs" if settings.enable_api_docs else None,
@@ -147,9 +146,9 @@ async def root():
             "docs": "/docs" if settings.enable_api_docs else "disabled",
             "health": "/api/v1/health",
             "generate": "/api/v1/generate",
-            "generations": "/api/v1/generations" if settings.database_enabled else "disabled",
-            "generation_details": "/api/v1/generations/{id}" if settings.database_enabled else "disabled", 
-            "statistics": "/api/v1/statistics" if settings.database_enabled else "disabled"
+            "generations": "/api/v1/generations",
+            "generation_details": "/api/v1/generations/{id}", 
+            "statistics": "/api/v1/statistics"
         }
     }
 
@@ -178,7 +177,7 @@ if __name__ == "__main__":
     uvicorn.run(
         "main:app",
         host=settings.app_host,
-        port=settings.app_port,
+        port=3001,  # Farklı port kullan
         reload=settings.reload_on_change and settings.debug_mode,
         log_config=None  # Use our custom logging configuration
     ) 
