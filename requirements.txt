@@ -6,6 +6,9 @@ pydantic-settings==2.1.0
 requests==2.31.0
 python-dotenv==1.0.0
 structlog==23.2.0
+sqlalchemy==2.0.23
+aiosqlite==0.19.0
+alembic==1.13.0
 
 # Minimal Supabase for Vercel
 supabase==2.3.0 
