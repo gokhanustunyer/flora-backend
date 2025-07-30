@@ -1,20 +1,10 @@
-"""Database connection configuration for Supabase."""
+"""Database connection configuration for Supabase only."""
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.pool import NullPool
 from config.settings import settings
 from utils.logging_config import get_logger
-
-# Add UUID support for SQLite
-from sqlalchemy.dialects.sqlite.base import SQLiteTypeCompiler
-from sqlalchemy.dialects.postgresql import UUID
-
-def visit_UUID(self, type_, **kw):
-    return "TEXT"
-
-# Monkey patch UUID support for SQLite
-SQLiteTypeCompiler.visit_UUID = visit_UUID
 
 logger = get_logger(__name__)
 
@@ -26,10 +16,9 @@ engine = None
 AsyncSessionLocal = None
 
 def get_database_url() -> str:
-    """Get the appropriate database URL based on configuration."""
+    """Get the Supabase database URL."""
     if settings.database_url and "[YOUR_DB_PASSWORD]" not in str(settings.database_url):
         # Direct database URL provided and it's valid
-        # Convert asyncpg to psycopg for better Supabase compatibility
         db_url = str(settings.database_url)
         if "postgresql+asyncpg://" in db_url:
             db_url = db_url.replace("postgresql+asyncpg://", "postgresql+psycopg://")
@@ -39,99 +28,67 @@ def get_database_url() -> str:
         # Build database URL from Supabase settings
         project_url = settings.supabase_url
         if not project_url:
-            raise ValueError("Supabase URL is required when using Supabase database")
+            raise ValueError("Supabase URL is required")
         
         # Extract project ID from Supabase URL
-        # Format: https://your-project.supabase.co
         project_id = project_url.replace("https://", "").replace("http://", "").split(".")[0]
         
-        # Supabase direct database connection format - use psycopg for better pgbouncer compatibility
+        # Supabase direct database connection format
         db_url = f"postgresql+psycopg://postgres:[YOUR_DB_PASSWORD]@db.{project_id}.supabase.co:6543/postgres"
         
         logger.warning(
             "Using Supabase database URL template. "
-            "Please replace [YOUR_DB_PASSWORD] with your actual Supabase database password in DATABASE_URL."
+            "Please set DATABASE_URL with your actual Supabase database password."
         )
         return db_url
     else:
-        # Fallback to SQLite for local development when no database config
-        logger.info("No database configuration found. Using SQLite for local development.")
-        return "sqlite+aiosqlite:///./gnb_generations.db"
+        raise ValueError("Database configuration required. Please set SUPABASE_URL and SUPABASE_ANON_KEY or DATABASE_URL.")
 
 # Create async engine only if database is enabled
 if settings.database_enabled:
     try:
         database_url = get_database_url()
         
-        # Check if we have a real database URL
-        if database_url.startswith("sqlite"):
-            # Use SQLite for local development
-            logger.info("Using SQLite for local development")
-            engine = create_async_engine(
-                database_url,
-                echo=settings.database_echo,
-                future=True,
-            )
-            
-            # Create session factory
-            AsyncSessionLocal = async_sessionmaker(
-                engine,
-                class_=AsyncSession,
-                expire_on_commit=False
-            )
-            
-            logger.info("SQLite database engine initialized successfully for local development")
-        else:
-            # Use the provided database URL (PostgreSQL/Supabase)
-            # Configure engine parameters based on database type
-            engine_params = {
-                "echo": settings.database_echo,
-                "future": True,
+        # Configure engine for Supabase/PostgreSQL with pgbouncer compatibility
+        engine_params = {
+            "echo": settings.database_echo,
+            "future": True,
+            "poolclass": NullPool,  # Required for Supabase pgbouncer
+        }
+        
+        if "psycopg" in database_url:
+            # psycopg-specific settings for Supabase
+            engine_params["connect_args"] = {
+                "prepare_threshold": None,  # Disable prepared statements
+                "options": "-c jit=off"  # Server settings for psycopg
             }
-            
-            # For Supabase/PostgreSQL, configure for pgbouncer compatibility
-            if "postgresql" in database_url:
-                engine_params["poolclass"] = NullPool
-                
-                if "psycopg" in database_url:
-                    # psycopg-specific settings for Supabase
-                    engine_params["connect_args"] = {
-                        "prepare_threshold": None,  # Disable prepared statements
-                        "options": "-c jit=off"  # Server settings for psycopg
-                    }
-                else:
-                    # asyncpg settings (fallback)
-                    engine_params["connect_args"] = {
-                        "statement_cache_size": 0,
-                        "prepared_statement_cache_size": 0,
-                        "command_timeout": 60,
-                        "server_settings": {
-                            "jit": "off",
-                            "statement_timeout": "30s"
-                        }
-                    }
-                    
-                # Also disable SQLAlchemy's own statement caching
-                engine_params["pool_pre_ping"] = True
-                engine_params["pool_recycle"] = 300
-            else:
-                # For regular PostgreSQL, use connection pooling
-                engine_params.update({
-                    "pool_size": settings.database_pool_size,
-                    "max_overflow": settings.database_max_overflow,
-                })
-            
-            engine = create_async_engine(database_url, **engine_params)
-            
-            # Create session factory
-            AsyncSessionLocal = async_sessionmaker(
-                engine,
-                class_=AsyncSession,
-                expire_on_commit=False
-            )
-            
-            logger.info("Database engine initialized successfully")
-            
+        else:
+            # asyncpg settings (fallback)
+            engine_params["connect_args"] = {
+                "statement_cache_size": 0,
+                "prepared_statement_cache_size": 0,
+                "command_timeout": 60,
+                "server_settings": {
+                    "jit": "off",
+                    "statement_timeout": "30s"
+                }
+            }
+        
+        # Additional pgbouncer compatibility settings
+        engine_params["pool_pre_ping"] = True
+        engine_params["pool_recycle"] = 300
+        
+        engine = create_async_engine(database_url, **engine_params)
+        
+        # Create session factory
+        AsyncSessionLocal = async_sessionmaker(
+            engine,
+            class_=AsyncSession,
+            expire_on_commit=False
+        )
+        
+        logger.info("Supabase database engine initialized successfully")
+        
     except Exception as e:
         logger.error(f"Failed to initialize database engine: {e}")
         engine = None
@@ -238,10 +195,10 @@ async def check_database_health() -> dict:
         return {
             "status": "healthy",
             "message": "Database connection successful",
-            "type": "supabase" if settings.supabase_enabled else "postgresql"
+            "type": "supabase"
         }
     except Exception as e:
         return {
             "status": "error",
             "message": f"Database connection failed: {str(e)}"
-        } 
+        }

@@ -10,13 +10,7 @@ from PIL import Image
 import io
 
 from main import app
-from database.connection import get_db, Base
 from config.settings import settings
-
-
-# Test database URL (in-memory SQLite for testing)  
-TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
-
 
 
 @pytest.fixture(scope="session")
@@ -26,12 +20,15 @@ def event_loop():
     yield loop
     loop.close()
 
+
 @pytest_asyncio.fixture
-async def client(test_session):
-    """Create test client with database override."""
+async def client():
+    """Create test client without database dependency."""
+    # Override database dependency to return None for testing
+    from database.connection import get_db
     
     async def override_get_db():
-        yield test_session
+        yield None
     
     app.dependency_overrides[get_db] = override_get_db
     
@@ -148,3 +145,5 @@ def override_settings(monkeypatch, temp_logo_file):
     monkeypatch.setattr(settings, 'max_image_size_mb', 10)
     monkeypatch.setattr(settings, 'ai_generation_timeout', 5)
     monkeypatch.setattr(settings, 'debug_mode', True)
+    # Disable database for testing
+    monkeypatch.setattr(settings, 'database_enabled', False)
