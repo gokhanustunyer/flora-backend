@@ -42,7 +42,7 @@ class StabilityAIGenerator:
         Returns:
             Detailed prompt for Stability.ai inpainting
         """
-        base_prompt = """Generate a high-quality, photorealistic image of a beautiful dog wearing cozy, premium apparel from Good Natured Brand (GNB). The apparel should be:
+        base_prompt = """Generate a high-quality, photorealistic image of a beautiful dog wearing cozy, premium apparel from GNB. The apparel should be:
 
 Made from natural, sustainable materials in earth tones (forest green, warm beige, natural brown)
 
