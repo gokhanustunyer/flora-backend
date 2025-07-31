@@ -45,21 +45,30 @@ class StabilityAIGenerator:
         base_prompt = """Generate a high-quality, photorealistic image of a beautiful dog wearing cozy, premium apparel from Good Natured Brand (GNB). The apparel should be:
 
 Made from natural, sustainable materials in earth tones (forest green, warm beige, natural brown)
-Feature subtle GNB branding or logo elements
-Look comfortable and well-fitted on the dog
-Include items like a cozy sweater, bandana, or stylish jacket
+
+Feature only the simple “GNB” text as branding on the apparel (e.g., on the chest of a sweater or jacket)
+
+Look comfortable, well-fitted, and stylish on the dog
+
+Include cozy items like a knit sweater, cotton bandana, or natural-fabric jacket
+
 The dog should be:
-- Happy and playful, with bright, alert eyes
-- In a natural, relaxed pose
-- Well-groomed and healthy-looking
+
+Happy and playful, with bright, alert eyes
+
+In a natural, relaxed pose
+
+Well-groomed and healthy-looking
 
 Setting:
-- Clean, modern home environment with natural lighting
-- Neutral background that doesn't distract from the dog
-- Professional pet photography style
-- Warm, inviting atmosphere
 
-Style: Photorealistic, high-resolution, professional pet photography with excellent lighting and composition."""
+Clean, modern home environment with soft, natural lighting
+
+Neutral background that doesn't distract from the dog
+
+Professional pet photography style with warm, inviting atmosphere
+
+High-resolution, photorealistic image with excellent lighting and composition"""
 
         if additional_context:
             base_prompt += f"\n\nDog details: {additional_context}"
